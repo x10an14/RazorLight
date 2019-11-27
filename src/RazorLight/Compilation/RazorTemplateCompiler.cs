@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -246,37 +247,17 @@ namespace RazorLight.Compilation
 				return templateKey;
 			}
 
-			var addLeadingSlash = templateKey[0] != '\\' && templateKey[0] != '/';
-			var transformSlashes = templateKey.IndexOf('\\') != -1;
+			var absoluteTemplatePath = Path.GetFullPath(templateKey);
 
-			if (!addLeadingSlash && !transformSlashes)
-			{
-				return templateKey;
-			}
+			// Ensure all directory-separating backslashes 'a\b
+			// are replaced with forwardslashes 'a/b'
+			//
+			// And not escapes like 'a\ and\ b/c' -> 'a/ and/ b/c'
+			var templatePathURI = new Uri(absoluteTemplatePath);
+			string templateKeyPath = templatePathURI.Segments.Aggregate((a, b) =>
+				a + b);
 
-			var length = templateKey.Length;
-			if (addLeadingSlash)
-			{
-				length++;
-			}
-
-			var builder = new InplaceStringBuilder(length);
-			if (addLeadingSlash)
-			{
-				builder.Append('/');
-			}
-
-			for (var i = 0; i < templateKey.Length; i++)
-			{
-				var ch = templateKey[i];
-				if (ch == '\\')
-				{
-					ch = '/';
-				}
-				builder.Append(ch);
-			}
-
-			return builder.ToString();
+			return templateKeyPath;
 		}
 
 		private class ViewCompilerWorkItem
