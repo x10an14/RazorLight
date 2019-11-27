@@ -247,17 +247,30 @@ namespace RazorLight.Compilation
 				return templateKey;
 			}
 
+			// Ensure we've got an absolute path,
+			// a relative path will now be converted to its absolute canonical equivalent
+			// (and maybe trigger a File not found exception further down the line if it doesn't exist)
 			var absoluteTemplatePath = Path.GetFullPath(templateKey);
 
 			// Ensure all directory-separating backslashes 'a\b
 			// are replaced with forwardslashes 'a/b'
-			//
-			// And not escapes like 'a\ and\ b/c' -> 'a/ and/ b/c'
-			var templatePathURI = new Uri(absoluteTemplatePath);
-			string templateKeyPath = templatePathURI.Segments.Aggregate((a, b) =>
-				a + b);
+			//		And not escapes like 'a\ and\ b/c' -> 'a/ and/ b/c'
+			var templatePathUri = new Uri(absoluteTemplatePath);
+			string templateKeyPath = templatePathUri
+				.Segments
+				.Skip(1)	// Skip first segment, which always is '/' or equivalent windows root (added later)
+				.Aggregate((stringToBuild, segment) =>
+					stringToBuild	// Accumulator; https://stackoverflow.com/a/13895253/1503549
+					+ "/"			// Ensure we've hardcoded the separator to be '/'
+					+ segment
+						.TrimEnd('/')	// Ensure we replace/remove all existing path separators
+						.TrimEnd('\\')	// ref. Uri.Segments specifying that separator is last char in segment.
+				);
 
-			return templateKeyPath;
+			// If we exclude support for VNC/network drives, this will do
+			string templateKeyPathRoot = Path.GetPathRoot(absoluteTemplatePath)
+				.TrimStart('\\');
+			return templateKeyPathRoot + templateKeyPath;
 		}
 
 		private class ViewCompilerWorkItem
